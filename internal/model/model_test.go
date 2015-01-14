@@ -76,7 +76,7 @@ func TestRequest(t *testing.T) {
 	m.ScanFolder("default")
 
 	// Existing, shared file
-	bs, err := m.Request(device1, "default", "foo", 0, 6)
+	bs, err := m.Request(device1, "default", "foo", 0, 6, nil, 0, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -85,7 +85,7 @@ func TestRequest(t *testing.T) {
 	}
 
 	// Existing, nonshared file
-	bs, err = m.Request(device2, "default", "foo", 0, 6)
+	bs, err = m.Request(device2, "default", "foo", 0, 6, nil, 0, nil)
 	if err == nil {
 		t.Error("Unexpected nil error on insecure file read")
 	}
@@ -94,7 +94,7 @@ func TestRequest(t *testing.T) {
 	}
 
 	// Nonexistent file
-	bs, err = m.Request(device1, "default", "nonexistent", 0, 6)
+	bs, err = m.Request(device1, "default", "nonexistent", 0, 6, nil, 0, nil)
 	if err == nil {
 		t.Error("Unexpected nil error on insecure file read")
 	}
@@ -103,7 +103,7 @@ func TestRequest(t *testing.T) {
 	}
 
 	// Shared folder, but disallowed file name
-	bs, err = m.Request(device1, "default", "../walk.go", 0, 6)
+	bs, err = m.Request(device1, "default", "../walk.go", 0, 6, nil, 0, nil)
 	if err == nil {
 		t.Error("Unexpected nil error on insecure file read")
 	}
@@ -112,7 +112,7 @@ func TestRequest(t *testing.T) {
 	}
 
 	// Larger block than available
-	bs, err = m.Request(device1, "default", "foo", 0, 42)
+	bs, err = m.Request(device1, "default", "foo", 0, 42, nil, 0, nil)
 	if err == nil {
 		t.Error("Unexpected nil error on insecure file read")
 	}
@@ -121,7 +121,7 @@ func TestRequest(t *testing.T) {
 	}
 
 	// Negative offset
-	bs, err = m.Request(device1, "default", "foo", -4, 6)
+	bs, err = m.Request(device1, "default", "foo", -4, 6, nil, 0, nil)
 	if err == nil {
 		t.Error("Unexpected nil error on insecure file read")
 	}
@@ -130,7 +130,7 @@ func TestRequest(t *testing.T) {
 	}
 
 	// Negative size
-	bs, err = m.Request(device1, "default", "foo", 4, -4)
+	bs, err = m.Request(device1, "default", "foo", 4, -4, nil, 0, nil)
 	if err == nil {
 		t.Error("Unexpected nil error on insecure file read")
 	}
@@ -162,7 +162,7 @@ func BenchmarkIndex10000(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		m.Index(device1, "default", files)
+		m.Index(device1, "default", files, 0, nil)
 	}
 }
 
@@ -175,7 +175,7 @@ func BenchmarkIndex00100(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		m.Index(device1, "default", files)
+		m.Index(device1, "default", files, 0, nil)
 	}
 }
 
@@ -185,11 +185,11 @@ func BenchmarkIndexUpdate10000f10000(b *testing.B) {
 	m.AddFolder(config.FolderConfiguration{ID: "default", Path: "testdata"})
 	m.ScanFolder("default")
 	files := genFiles(10000)
-	m.Index(device1, "default", files)
+	m.Index(device1, "default", files, 0, nil)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		m.IndexUpdate(device1, "default", files)
+		m.IndexUpdate(device1, "default", files, 0, nil)
 	}
 }
 
@@ -199,12 +199,12 @@ func BenchmarkIndexUpdate10000f00100(b *testing.B) {
 	m.AddFolder(config.FolderConfiguration{ID: "default", Path: "testdata"})
 	m.ScanFolder("default")
 	files := genFiles(10000)
-	m.Index(device1, "default", files)
+	m.Index(device1, "default", files, 0, nil)
 
 	ufiles := genFiles(100)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		m.IndexUpdate(device1, "default", ufiles)
+		m.IndexUpdate(device1, "default", ufiles, 0, nil)
 	}
 }
 
@@ -214,12 +214,12 @@ func BenchmarkIndexUpdate10000f00001(b *testing.B) {
 	m.AddFolder(config.FolderConfiguration{ID: "default", Path: "testdata"})
 	m.ScanFolder("default")
 	files := genFiles(10000)
-	m.Index(device1, "default", files)
+	m.Index(device1, "default", files, 0, nil)
 
 	ufiles := genFiles(1)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		m.IndexUpdate(device1, "default", ufiles)
+		m.IndexUpdate(device1, "default", ufiles, 0, nil)
 	}
 }
 
@@ -244,15 +244,15 @@ func (f FakeConnection) Option(string) string {
 	return ""
 }
 
-func (FakeConnection) Index(string, []protocol.FileInfo) error {
+func (FakeConnection) Index(string, []protocol.FileInfo, uint32, []protocol.Option) error {
 	return nil
 }
 
-func (FakeConnection) IndexUpdate(string, []protocol.FileInfo) error {
+func (FakeConnection) IndexUpdate(string, []protocol.FileInfo, uint32, []protocol.Option) error {
 	return nil
 }
 
-func (f FakeConnection) Request(folder, name string, offset int64, size int) ([]byte, error) {
+func (f FakeConnection) Request(folder, name string, offset int64, size int, hash []byte, flags uint32, options []protocol.Option) ([]byte, error) {
 	return f.requestData, nil
 }
 
@@ -288,11 +288,11 @@ func BenchmarkRequest(b *testing.B) {
 		requestData: []byte("some data to return"),
 	}
 	m.AddConnection(fc, fc)
-	m.Index(device1, "default", files)
+	m.Index(device1, "default", files, 0, nil)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		data, err := m.requestGlobal(device1, "default", files[i%n].Name, 0, 32, nil)
+		data, err := m.requestGlobal(device1, "default", files[i%n].Name, 0, 32, nil, 0, nil)
 		if err != nil {
 			b.Error(err)
 		}
