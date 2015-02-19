@@ -530,7 +530,7 @@ func syncthingMain() {
 
 	// The default port we announce, possibly modified by setupUPnP next.
 
-	addr, err := net.ResolveTCPAddr("tcp", opts.ListenAddress[0])
+	addr, err := net.ResolveUDPAddr("udp", opts.ListenAddress[0])
 	if err != nil {
 		l.Fatalln("Bad listen address:", err)
 	}
@@ -799,7 +799,7 @@ func setupExternalPort(igd *upnp.IGD, port int) int {
 
 	for i := 0; i < 10; i++ {
 		r := 1024 + predictableRandom.Intn(65535-1024)
-		err := igd.AddPortMapping(upnp.TCP, r, port, fmt.Sprintf("syncthing-%d", r), cfg.Options().UPnPLease*60)
+		err := igd.AddPortMapping(upnp.UDP, r, port, fmt.Sprintf("syncthing-udp-%d", r), cfg.Options().UPnPLease*60)
 		if err == nil {
 			return r
 		}
@@ -832,7 +832,7 @@ func renewUPnP(port int) {
 
 		// Just renew the same port that we already have
 		if externalPort != 0 {
-			err := igd.AddPortMapping(upnp.TCP, externalPort, port, "syncthing", opts.UPnPLease*60)
+			err := igd.AddPortMapping(upnp.UDP, externalPort, port, "syncthing", opts.UPnPLease*60)
 			if err != nil {
 				l.Warnf("Error renewing UPnP port mapping for external port %d on device %s: %s", externalPort, igd.FriendlyIdentifier(), err.Error())
 			} else if debugNet {
